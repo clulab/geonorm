@@ -2,7 +2,7 @@ package org.clulab.geonorm
 
 import java.nio.file.{Files, Paths}
 
-import org.apache.commons.io.{FileUtils, IOUtils}
+import org.apache.commons.io.FileUtils
 import org.scalatest.{Matchers, WordSpec}
 
 class GeoNormSpec extends WordSpec with Matchers {

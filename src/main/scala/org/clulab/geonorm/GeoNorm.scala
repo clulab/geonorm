@@ -1,6 +1,6 @@
 package org.clulab.geonorm
 
-import java.io.{BufferedReader, InputStream, InputStreamReader, Reader}
+import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.file.{Files, Path}
 
 import scala.collection.JavaConverters._
@@ -34,8 +34,8 @@ object GeoLocationExtractor {
   }
 }
 
-class GeoLocationExtractor(taggerModel: Session = GeoLocationExtractor.loadNetwork(getClass.getResourceAsStream("/org/clulab/geonorm/model/geonorm_model.pb")),
-                           wordToIndex: Map[String, Int] = GeoLocationExtractor.loadVocabulary(getClass.getResourceAsStream("/org/clulab/geonorm/en/geoloc-extractor-vocabulary.txt"))) {
+class GeoLocationExtractor(taggerModel: Session = GeoLocationExtractor.loadNetwork(classOf[GeoLocationExtractor].getResourceAsStream("/org/clulab/geonorm/model/geonorm_model.pb")),
+                           wordToIndex: Map[String, Int] = GeoLocationExtractor.loadVocabulary(classOf[GeoLocationExtractor].getResourceAsStream("/org/clulab/geonorm/en/geoloc-extractor-vocabulary.txt"))) {
 
   lazy private val unknownInt = wordToIndex(GeoLocationExtractor.UNKNOWN_TOKEN)
   lazy private val paddingInt = wordToIndex(GeoLocationExtractor.PADDING_TOKEN)
@@ -173,7 +173,7 @@ object GeoLocationNormalizer {
 
 
 class GeoLocationNormalizer(geoNamesIndex: GeoNamesIndex,
-                            linearModel: Option[Model] = Some(GeoLocationNormalizer.loadModel(getClass.getResourceAsStream("/org/clulab/geonorm/geonames-reranker.model")))) {
+                            linearModel: Option[Model] = Some(GeoLocationNormalizer.loadModel(classOf[GeoLocationNormalizer].getResourceAsStream("/org/clulab/geonorm/geonames-reranker.model")))) {
 
   def scoredEntries(text: String, span: (Int, Int)): Array[(GeoNamesEntry, Float)] = span match {
     case (start, end) => geoNamesIndex.search(text.substring(start, end))
