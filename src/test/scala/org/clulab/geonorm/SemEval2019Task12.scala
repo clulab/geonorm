@@ -6,18 +6,19 @@ import scala.collection.JavaConverters._
 
 object SemEval2019Task12 {
 
+  private val modelPath = Paths.get("src/main/resources/org/clulab/geonorm/geonames-reranker.model")
+
   def main(args: Array[String]): Unit = args match {
-    case Array("train", geoNamesIndexDir, modelFile, annDir) =>
+    case Array("train", geoNamesIndexDir, annDir) =>
       val annFiles = Files.newDirectoryStream(Paths.get(annDir), "*.ann").iterator.asScala
       val geoNamesIndex = new GeoNamesIndex(Paths.get(geoNamesIndexDir))
       val normalizer = GeoLocationNormalizer.train(geoNamesIndex, annFiles.map(readTextAndGeoIdSpans))
-      normalizer.save(Paths.get(modelFile))
+      normalizer.save(modelPath)
 
-    case Array("test", geoNamesIndexDir, modelFile, annDir) =>
+    case Array("test", geoNamesIndexDir, annDir) =>
       val k = 1
       val geoNamesIndex = new GeoNamesIndex(Paths.get(geoNamesIndexDir))
-      val model = GeoLocationNormalizer.loadModel(Paths.get(modelFile))
-      val normalizer = new GeoLocationNormalizer(geoNamesIndex, Some(model))
+      val normalizer = new GeoLocationNormalizer(geoNamesIndex)
       val results =
         for {
           annPath <- Files.newDirectoryStream(Paths.get(annDir), "*.ann").iterator.asScala
