@@ -38,15 +38,19 @@ object GeoNamesIndexConfig {
   val idEndField: Field = new StringField("idEnd", "x", Field.Store.NO)
 
   val idEndQuery: Query = new TermQuery(new Term("idEnd", "x"))
-  val nameAnalyzer: Analyzer = (_: String) => {
-    val tokenizer = new KeywordTokenizer
-    val filter = new PatternReplaceFilter(new LowerCaseFilter(tokenizer), Pattern.compile("\\W+"), "", true)
-    new Analyzer.TokenStreamComponents(tokenizer, filter)
+  val nameAnalyzer: Analyzer = new Analyzer {
+    override def createComponents(fieldName: String): Analyzer.TokenStreamComponents = {
+      val tokenizer = new KeywordTokenizer
+      val filter = new PatternReplaceFilter(new LowerCaseFilter(tokenizer), Pattern.compile("\\W+"), "", true)
+      new Analyzer.TokenStreamComponents(tokenizer, filter)
+    }
   }
-  val ngramAnalyzer: Analyzer = (_: String) => {
-    val tokenizer = new StandardTokenizer
-    val filter = new NGramTokenFilter(new LowerCaseFilter(tokenizer), 3, 3)
-    new Analyzer.TokenStreamComponents(tokenizer, filter)
+  val ngramAnalyzer: Analyzer = new Analyzer {
+    override def createComponents(fieldName: String): Analyzer.TokenStreamComponents = {
+      val tokenizer = new StandardTokenizer
+      val filter = new NGramTokenFilter(new LowerCaseFilter(tokenizer), 3, 3)
+      new Analyzer.TokenStreamComponents(tokenizer, filter)
+    }
   }
   val analyzer: Analyzer = new PerFieldAnalyzerWrapper(
     new KeywordAnalyzer, Map("name" -> nameAnalyzer, "ngrams" -> ngramAnalyzer).asJava)

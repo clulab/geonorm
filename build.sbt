@@ -1,8 +1,10 @@
 organization := "org.clulab"
 name := "geonorm"
-version := "0.9.5"
+version := "0.9.6"
 
 scalaVersion := "2.12.8"
+crossScalaVersions := List("2.11.12", "2.12.8", "2.13.0")
+scalacOptions := Seq("-unchecked", "-deprecation")
 
 libraryDependencies ++= {
   val luceneVer = "6.6.6"
@@ -19,6 +21,9 @@ libraryDependencies ++= {
     "org.scalatest"      %% "scalatest"               % "3.0.8"    % Test,
   )
 }
+
+// needed or tensorflow fails with "Cannot register 2 metrics with the same name"
+Test / fork := true
 
 // Additional metadata required by Sonatype OSS
 // https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html
