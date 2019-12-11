@@ -122,7 +122,7 @@ class GeoNamesIndex(indexPath: Path) {
     val ngramsQueryParser = new QueryParser("ngrams", GeoNamesIndexConfig.analyzer)
 
     // escape special characters for queries to "name" field
-    val luceneSpecialCharacters = """([-+&|!(){}\[\]^"~*?:\\/])"""
+    val luceneSpecialCharacters = """([-+&|!(){}\[\]^"~*?:\\/]|\bAND\b|\bOR\b|\bNOT\b)"""
     val escapedQueryString = queryString.replaceAll(luceneSpecialCharacters, """\\$1""")
     val whitespaceEscapedQueryString = escapedQueryString.replaceAll("""\s""", """\\ """)
 

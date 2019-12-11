@@ -20,6 +20,11 @@ class GeoNamesIndexSpec extends WordSpec with Matchers {
     "find no matches for Zxxy" in {
       assert(index.search("Zxxy") === Seq.empty)
     }
+    "produce no errors on Lucene keywords" in {
+      index.search("OR")
+      index.search("AND")
+      index.search("NOT")
+    }
     "close without error" in {
       index.close()
     }
