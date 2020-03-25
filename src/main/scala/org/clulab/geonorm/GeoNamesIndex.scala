@@ -16,6 +16,7 @@ import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.search.{IndexSearcher, Query, TermQuery}
 import org.apache.lucene.search.grouping.GroupingSearch
 import org.apache.lucene.store.FSDirectory
+import org.apache.lucene.util.automaton.TooComplexToDeterminizeException
 
 
 class GeoNamesEntry(document: Document) {
@@ -131,7 +132,12 @@ class GeoNamesIndex(indexPath: Path) {
 
     // if there's no exact match, search for fuzzy (1-2 edit-distance) matches
     if (results.isEmpty) {
-      results = scoredEntries(nameQueryParser.parse(whitespaceEscapedQueryString + "~"), maxFuzzyHits)
+      try {
+        results = scoredEntries(nameQueryParser.parse(whitespaceEscapedQueryString + "~"), maxFuzzyHits)
+      } catch {
+        case _: TooComplexToDeterminizeException =>
+          // continue to n-gram search if the query is too complex for fuzzy search
+      }
     }
     // if there's no fuzzy match, search for n-gram matches
     if (results.isEmpty) {

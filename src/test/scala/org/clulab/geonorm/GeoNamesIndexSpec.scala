@@ -25,6 +25,14 @@ class GeoNamesIndexSpec extends WordSpec with Matchers {
       index.search("AND")
       index.search("NOT")
     }
+    "produce no errors on inappropriately long strings with accents" in {
+      // issue #3
+      index.search("que llegan por vía aérea*.\nObjetivos. Se midieron los síntomas y la prevalencia de la gripe (también llamada influenza")
+      // issue #4
+      index.search("de los factores de riesgo del comportamiento asociados con la dinámica de la transmisión del virus. Al estar")
+      // issue #5
+      index.search("risultati hanno chiaramente identificato sia la necessità di coinvolgere gli adolescenti nella progettazione di interventi di")
+    }
     "close without error" in {
       index.close()
     }
