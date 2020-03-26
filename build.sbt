@@ -3,6 +3,7 @@ name := "geonorm"
 
 scalaVersion := "2.12.8"
 crossScalaVersions := List("2.11.12", "2.12.8", "2.13.0")
+releaseCrossBuild := true
 scalacOptions := Seq("-unchecked", "-deprecation")
 
 libraryDependencies ++= {
