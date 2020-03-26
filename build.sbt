@@ -62,7 +62,7 @@ publishMavenStyle := true
 credentials += Credentials(Path.userHome / ".sbt" / ".sonatype_credentials")
 
 val indexGeoNames = taskKey[Unit]("Creates an index of the current GeoNames database")
-indexGeoNames := {
+indexGeoNames := (Def.taskDyn {
   import java.net.URL
   import java.time.Instant
   import java.nio.file.{Files,Paths,StandardCopyOption}
@@ -91,5 +91,12 @@ indexGeoNames := {
     val newPomText = pomVersionRegex.replaceFirstIn(pomText, s"<version>$pomVersion+${urlLastModified.toString}")
     Files.write(pomPath, newPomText.getBytes("UTF-8"))
   }
-  // (Compile / runMain).toTask(" org.clulab.geonorm.GeoNamesIndex").value
-}
+
+  val geoNamesPath = allCountriesPath // FIXME: unzip first
+  val indexPath = java.nio.file.Paths.get(
+    "geonames-index", "src", "main", "resources", "org", "clulab", "geonames", "index")
+  val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $geoNamesPath"
+  Def.task {
+    (Compile / runMain).toTask(command).value
+  }
+}).value
