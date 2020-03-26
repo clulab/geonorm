@@ -67,7 +67,6 @@ indexGeoNames := {
   import java.time.Instant
   import java.nio.file.{Files,Paths,StandardCopyOption}
 
-  val allCountriesPath = Paths.get("geonames-index", "allCountries.zip")
   val pomPath = Paths.get("geonames-index", "pom.xml")
   val pomText = new String(Files.readAllBytes(pomPath))
   val pomVersionRegex = "<version>([.\\d]+)[+]([^<]*)".r
@@ -79,13 +78,15 @@ indexGeoNames := {
   val connection = new URL("http://download.geonames.org/export/dump/allCountries.zip").openConnection
   val urlLastModified = Instant.ofEpochMilli(connection.getLastModified)
 
-  // if the currently downloaded allCountries.zip is up-to-date, use that
-  if (Files.exists(allCountriesPath) && !urlLastModified.isAfter(pomLastModified)) {
+  // if there is an up-to-date allCountries.zip already downloaded, use that
+  val timestamp = urlLastModified.toString.replaceAll("\\W+", "")
+  val allCountriesPath = Paths.get("geonames-index", s"allCountries-$timestamp.zip")
+  if (Files.exists(allCountriesPath)) {
     println(s"Using existing $allCountriesPath last modified on $pomLastModified")
   }
   // otherwise, download a new allCountries.zip and update the version date in pom.xml
   else {
-    println(s"Downloading GeoNames data from $allCountriesPath, last modified $urlLastModified")
+    println(s"Downloading GeoNames data to $allCountriesPath")
     Files.copy(connection.getInputStream, allCountriesPath, StandardCopyOption.REPLACE_EXISTING)
     val newPomText = pomVersionRegex.replaceFirstIn(pomText, s"<version>$pomVersion+${urlLastModified.toString}")
     Files.write(pomPath, newPomText.getBytes("UTF-8"))
