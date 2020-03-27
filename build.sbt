@@ -64,38 +64,58 @@ credentials += Credentials(Path.userHome / ".sbt" / ".sonatype_credentials")
 val indexGeoNames = taskKey[Unit]("Creates an index of the current GeoNames database")
 indexGeoNames := (Def.taskDyn {
   import java.net.URL
-  import java.time.Instant
-  import java.nio.file.{Files,Paths,StandardCopyOption}
+  import java.time.{Instant, ZoneOffset}
+  import java.time.format.DateTimeFormatter
+  import java.nio.file.{Files,Paths}
+  import java.util.zip.ZipFile
 
+  // find the last modified date from the pom.xml
   val pomPath = Paths.get("geonames-index", "pom.xml")
   val pomText = new String(Files.readAllBytes(pomPath))
   val pomVersionRegex = "<version>([.\\d]+)[+]([^<]*)".r
+  val dateTimeFormatter = DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmssX")
   val Some(versionMatch) = pomVersionRegex.findFirstMatchIn(pomText)
   val pomVersion = versionMatch.group(1)
-  val pomLastModified = Instant.parse(versionMatch.group(2))
+  val pomLastModified = Instant.from(dateTimeFormatter.parse(versionMatch.group(2)))
 
   // open a connection and determine the last modified time
   val connection = new URL("http://download.geonames.org/export/dump/allCountries.zip").openConnection
   val urlLastModified = Instant.ofEpochMilli(connection.getLastModified)
+  val timestamp = dateTimeFormatter.format(urlLastModified.atZone(ZoneOffset.UTC))
+
+  // construct filenames from timestamp
+  val allCountriesZipPath = Paths.get("geonames-index", s"allCountries-$timestamp.zip")
+  val allCountriesTxtPath = Paths.get("geonames-index", s"allCountries-$timestamp.txt")
 
   // if there is an up-to-date allCountries.zip already downloaded, use that
-  val timestamp = urlLastModified.toString.replaceAll("\\W+", "")
-  val allCountriesPath = Paths.get("geonames-index", s"allCountries-$timestamp.zip")
-  if (Files.exists(allCountriesPath)) {
-    println(s"Using existing $allCountriesPath last modified on $pomLastModified")
+  if (Files.exists(allCountriesZipPath)) {
+    println(s"Using existing $allCountriesZipPath last modified on $pomLastModified")
   }
-  // otherwise, download a new allCountries.zip and update the version date in pom.xml
+  // otherwise, download and extract a new allCountries.zip, and update the version date in pom.xml
   else {
-    println(s"Downloading GeoNames data to $allCountriesPath")
-    Files.copy(connection.getInputStream, allCountriesPath, StandardCopyOption.REPLACE_EXISTING)
-    val newPomText = pomVersionRegex.replaceFirstIn(pomText, s"<version>$pomVersion+${urlLastModified.toString}")
+    // download the zip file
+    println(s"Downloading GeoNames data to $allCountriesZipPath")
+    Files.copy(connection.getInputStream, allCountriesZipPath)
+
+    // update the version in pom.xml
+    val newPomText = pomVersionRegex.replaceFirstIn(pomText, s"<version>$pomVersion+$timestamp")
     Files.write(pomPath, newPomText.getBytes("UTF-8"))
+
+    // unzip the .zip file
+    println(s"Extracting $allCountriesTxtPath")
+    val zipFile = new ZipFile(allCountriesZipPath.toFile)
+    try {
+      val zipEntry = zipFile.getEntry("allCountries.txt")
+      Files.copy(zipFile.getInputStream(zipEntry), allCountriesTxtPath)
+    } finally {
+      zipFile.close()
+    }
   }
 
-  val geoNamesPath = allCountriesPath // FIXME: unzip first
-  val indexPath = java.nio.file.Paths.get(
+  // compute the command to pass to sbt's runMain to run the GeoNamesIndex class
+  val indexPath = Paths.get(
     "geonames-index", "src", "main", "resources", "org", "clulab", "geonames", "index")
-  val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $geoNamesPath"
+  val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $allCountriesTxtPath"
   Def.task {
     (Compile / runMain).toTask(command).value
   }

@@ -2,6 +2,7 @@ package org.clulab.geonorm
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.regex.Pattern
+import java.util.zip.ZipFile
 
 import scala.collection.JavaConverters._
 import org.apache.lucene.analysis.{Analyzer, LowerCaseFilter}
@@ -72,6 +73,40 @@ object GeoNamesIndex {
         }
       }
       index.close()
+  }
+
+  def fromClasspath(indexCachePath: Path, resourceName: String = "/org/clulab/geonames/index/"): GeoNamesIndex = {
+    if (!Files.exists(indexCachePath)) {
+      // find the .jar file containing the GeoNames index
+      val url = this.getClass.getResource(resourceName)
+      val jarFileURL = url.openConnection().asInstanceOf[java.net.JarURLConnection].getJarFileURL
+
+      // open the .jar file as a .zip file
+      val jarFile = new java.io.File(jarFileURL.toURI)
+      val zipFile = new ZipFile(jarFile)
+
+      // find all .zip file entries that are part of the index
+      try {
+        val prefix = resourceName.drop(1) // no leading '/' in zip files
+        for (entry <- zipFile.entries.asScala) {
+          println(entry.getName)
+          if (entry.getName.startsWith(prefix)) {
+            val path = indexCachePath.resolve(entry.getName.drop(prefix.length))
+
+            // write the file or directory to the index cache directory
+            if (entry.isDirectory) {
+              Files.createDirectories(path)
+            } else {
+              Files.createDirectories(path.getParent)
+              Files.copy(zipFile.getInputStream(entry), path)
+            }
+          }
+        }
+      } finally {
+        zipFile.close()
+      }
+    }
+    new GeoNamesIndex(indexCachePath)
   }
 
   def fromGeoNamesTxt(indexPath: Path, geoNamesPath: Path): GeoNamesIndex = {
