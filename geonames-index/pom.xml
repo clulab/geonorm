@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.clulab</groupId>
     <artifactId>geonames-index</artifactId>
-    <version>1.0.0+2020-03-25T01:54:13Z</version>
+    <version>1.0.0+20200327T015949Z</version>
     <packaging>jar</packaging>
     <organization>
         <name>org.clulab</name>
@@ -38,7 +38,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-gpg-plugin</artifactId>
-        <version>1.6+20200313T015258Z</version>
+        <version>1.6</version>
         <executions>
           <execution>
             <id>sign-artifacts</id>
