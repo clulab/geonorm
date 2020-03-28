@@ -3,3 +3,5 @@ project
 target
 *.class
 *.log
+geonames/allCountries*
+geonames/src
