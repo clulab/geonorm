@@ -88,6 +88,9 @@ lazy val geonames = project.dependsOn(geonorm).settings(
 
     val log = streams.value.log
 
+    // define where the GeoNames index should be built
+    val indexPath = Paths.get("geonames", "src", "main", "unmanagedResources", "org", "clulab", "geonames", "index")
+
     // get the last modified date from the version.sbt
     val versionPath = Paths.get("geonames","version.sbt")
     val versionText = new String(Files.readAllBytes(versionPath))
@@ -130,13 +133,25 @@ lazy val geonames = project.dependsOn(geonorm).settings(
       }
     }
 
-    // create the index via the GeoNamesIndex main method
-    val indexPath = Paths.get("geonames", "src", "main", "resources", "org", "clulab", "geonames", "index")
-    val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $allCountriesTxtPath"
-    log.info(s"Creating index at $indexPath")
-    Def.task {
-      (geonorm / Compile / runMain).toTask(command).value
-      indexPath.toFile.listFiles.toSeq.filterNot(_.getName.equals("write.lock"))
+    // if there is a new GeoNames timestamp, or no index has yet been built, invoke GeoNamesIndex to create one
+    import sbt.util.CacheImplicits._
+    val doBuildIndex = Tracked.inputChanged(streams.value.cacheStoreFactory.make("geonames-timestamp")){
+      (changed: Boolean, _: String) => changed || !Files.exists(indexPath) || Files.list(indexPath).count() == 0
+    }
+    if (doBuildIndex(timestamp)) {
+      log.info(s"Creating index at $indexPath")
+      val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $allCountriesTxtPath"
+      Def.task {
+        (geonorm / Compile / runMain).toTask(command).value
+        indexPath.toFile.listFiles.toSeq
+      }
+    }
+    // otherwise, use the existing index
+    else {
+      log.info(s"Using existing index at $indexPath")
+      Def.task {
+        indexPath.toFile.listFiles.toSeq
+      }
     }
   }).taskValue
 )
