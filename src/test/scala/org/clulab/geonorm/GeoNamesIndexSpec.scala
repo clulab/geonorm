@@ -14,8 +14,14 @@ class GeoNamesIndexSpec extends WordSpec with Matchers {
     "find 3 exact matches for Monaco" in {
       assert(index.search("Monaco").map(_._1.id).toSet === Set("2993457", "2993458", "3319178"))
     }
-    "find an approximate match to Moneghetti from the misspelling Mongeti" in {
-      index.search("Monegetii").map(_._1.id) should contain("3319177")
+    "find a fuzzy match to Moneghetti from the misspelling Monegetii if fuzzy hits are enabled" in {
+      index.search("Monegetii", maxFuzzyHits = 5, maxNGramHits = 0).map(_._1.id) should contain("3319177")
+      index.search("Monegetii", maxFuzzyHits = 0, maxNGramHits = 0) shouldBe empty
+    }
+    "find an ngram match to Moneghetti from the misspelling Mghetti if ngram hits are enabled" in {
+      index.search("Mghetti", maxFuzzyHits = 0, maxNGramHits = 5).map(_._1.id) should contain("3319177")
+      index.search("Mghetti", maxFuzzyHits = 5, maxNGramHits = 0) shouldBe empty
+      index.search("Mghetti", maxFuzzyHits = 0, maxNGramHits = 0) shouldBe empty
     }
     "find no matches for Zxxy" in {
       assert(index.search("Zxxy") === Seq.empty)
@@ -47,6 +53,14 @@ class GeoNamesIndexSpec extends WordSpec with Matchers {
       }
       "loaded from a directory that indexed MC.txt" should {
         mcIndexTests(new GeoNamesIndex(indexTempDir))
+      }
+      "loaded from a directory that indexed MC.txt with maxFuzzyHits = 0 and maxNGramHits = 0" should {
+        val index = new GeoNamesIndex(indexTempDir, maxFuzzyHits = 0, maxNGramHits = 0)
+        "find no fuzzy or NGram matches to Moneghetti" in {
+          index.search("Monegetii") shouldBe empty
+          index.search("Mghetti") shouldBe empty
+        }
+        mcIndexTests(index)
       }
     } finally {
       FileUtils.deleteDirectory(indexTempDir.toFile)

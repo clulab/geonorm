@@ -24,6 +24,7 @@ class GeoNamesEntry(document: Document) {
   lazy val name: String = document.get("canonical-name")
   lazy val featureCode: String = document.get("feature-code")
   lazy val population: Long = document.get("population").toLong
+  override def toString: String = s"${this.getClass.getSimpleName}($document)"
 }
 
 
@@ -112,12 +113,18 @@ object GeoNamesIndex {
   }
 }
 
-class GeoNamesIndex(indexPath: Path) {
+class GeoNamesIndex(indexPath: Path,
+                    maxExactHits: Int = 1000,
+                    maxFuzzyHits: Int = 5,
+                    maxNGramHits: Int = 5) {
   private val reader = DirectoryReader.open(FSDirectory.open(indexPath))
   private val searcher = new IndexSearcher(reader)
   private val groupingSearch = new GroupingSearch(GeoNamesIndexConfig.idEndQuery)
 
-  def search(queryString: String, maxFuzzyHits: Int = 5): Array[(GeoNamesEntry, Float)] = {
+  def search(queryString: String,
+             maxExactHits: Int = this.maxExactHits,
+             maxFuzzyHits: Int = this.maxFuzzyHits,
+             maxNGramHits: Int = this.maxNGramHits): Array[(GeoNamesEntry, Float)] = {
     // create these locally, since they are not thread-safe
     val nameQueryParser = new QueryParser("name", GeoNamesIndexConfig.analyzer)
     val ngramsQueryParser = new QueryParser("ngrams", GeoNamesIndexConfig.analyzer)
@@ -128,10 +135,10 @@ class GeoNamesIndex(indexPath: Path) {
     val whitespaceEscapedQueryString = escapedQueryString.replaceAll("""\s""", """\\ """)
 
     // first look for an exact match of the input phrase (the "name" field ignores spaces, punctuation, etc.)
-    var results = scoredEntries(nameQueryParser.parse(whitespaceEscapedQueryString), 1000)
+    var results = scoredEntries(nameQueryParser.parse(whitespaceEscapedQueryString), maxExactHits)
 
     // if there's no exact match, search for fuzzy (1-2 edit-distance) matches
-    if (results.isEmpty) {
+    if (results.isEmpty && maxFuzzyHits > 0) {
       try {
         results = scoredEntries(nameQueryParser.parse(whitespaceEscapedQueryString + "~"), maxFuzzyHits)
       } catch {
@@ -140,8 +147,8 @@ class GeoNamesIndex(indexPath: Path) {
       }
     }
     // if there's no fuzzy match, search for n-gram matches
-    if (results.isEmpty) {
-      results = scoredEntries(ngramsQueryParser.parse(escapedQueryString), maxFuzzyHits)
+    if (results.isEmpty && maxNGramHits > 0) {
+      results = scoredEntries(ngramsQueryParser.parse(escapedQueryString), maxNGramHits)
     }
     // sort first by retrieval score, then by population, then by feature code (e.g., ADM1 before ADM3 and PPL)
     results.sortBy{
