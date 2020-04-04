@@ -24,6 +24,9 @@ ThisBuild / pomIncludeRepository := { _ => false }
 // Publish as in Maven Central
 ThisBuild / publishMavenStyle := true
 
+// Allows different modules to have different versions.
+// NOTE: if prefixed by "ThisBuild / ", this setting doesn't work.
+releaseUseGlobalVersion := false
 
 lazy val geonorm = (project in file(".")).settings(
   name := "geonorm",
