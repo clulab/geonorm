@@ -62,6 +62,20 @@ class GeoNamesIndexSpec extends WordSpec with Matchers {
         }
         mcIndexTests(index)
       }
+      "loaded from a index of the full GeoNames on the classpath" should {
+        "fail if the index directory is not empty" in {
+          Files.createDirectories(indexTempDir)
+          Files.createFile(indexTempDir.resolve("empty.txt"))
+          assertThrows[IllegalArgumentException] {
+            GeoNamesIndex.fromClasspathJar(indexTempDir)
+          }
+        }
+        "find matches for Ethiopia" in {
+          FileUtils.cleanDirectory(indexTempDir.toFile)
+          val index = GeoNamesIndex.fromClasspathJar(indexTempDir)
+          index.search("Ethiopia") should not be empty
+        }
+      }
     } finally {
       FileUtils.deleteDirectory(indexTempDir.toFile)
     }

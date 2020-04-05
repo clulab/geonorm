@@ -75,8 +75,10 @@ object GeoNamesIndex {
       index.close()
   }
 
-  def fromClasspath(indexCachePath: Path, resourceName: String = "/org/clulab/geonames/index/"): GeoNamesIndex = {
-    if (!Files.exists(indexCachePath)) {
+  def fromClasspathJar(indexPath: Path, resourceName: String = "/org/clulab/geonames/index/"): GeoNamesIndex = {
+    if (Files.exists(indexPath) && Files.list(indexPath).count() > 0) {
+      throw new IllegalArgumentException(s"Cannot create index: $indexPath is not empty")
+    } else {
       // find the .jar file containing the GeoNames index
       val url = this.getClass.getResource(resourceName)
       val jarFileURL = url.openConnection().asInstanceOf[java.net.JarURLConnection].getJarFileURL
@@ -89,9 +91,8 @@ object GeoNamesIndex {
       try {
         val prefix = resourceName.drop(1) // no leading '/' in zip files
         for (entry <- zipFile.entries.asScala) {
-          println(entry.getName)
           if (entry.getName.startsWith(prefix)) {
-            val path = indexCachePath.resolve(entry.getName.drop(prefix.length))
+            val path = indexPath.resolve(entry.getName.drop(prefix.length))
 
             // write the file or directory to the index cache directory
             if (entry.isDirectory) {
@@ -106,7 +107,7 @@ object GeoNamesIndex {
         zipFile.close()
       }
     }
-    new GeoNamesIndex(indexCachePath)
+    new GeoNamesIndex(indexPath)
   }
 
   def fromGeoNamesTxt(indexPath: Path, geoNamesPath: Path): GeoNamesIndex = {

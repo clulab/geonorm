@@ -46,7 +46,8 @@ lazy val geonorm = (project in file(".")).settings(
       "org.apache.lucene"  %  "lucene-analyzers-common" % luceneVer,
       "org.apache.lucene"  %  "lucene-queryparser"      % luceneVer,
       "org.apache.lucene"  %  "lucene-grouping"         % luceneVer,
-      "org.scalatest"      %% "scalatest"               % "3.0.8"    % Test,
+      "org.scalatest"      %% "scalatest"               % "3.0.8"                  % Test,
+      "org.clulab"         %  "geonames"                % "1.0.0+20200404T005315Z" % Test,
     )
   },
   // needed or tensorflow fails with "Cannot register 2 metrics with the same name"
@@ -61,7 +62,7 @@ lazy val geonorm = (project in file(".")).settings(
   },
 )
 
-lazy val geonames = project.dependsOn(geonorm).settings(
+lazy val geonames = project.dependsOn(geonorm % "compile-internal").settings(
   name := "geonames",
   description := "Lucene index of GeoNames data from http://download.geonames.org/export/dump/",
   // Store credentials in ~/.sbt/.artifactory_credentials as:
@@ -92,7 +93,7 @@ lazy val geonames = project.dependsOn(geonorm).settings(
     val log = streams.value.log
 
     // define where the GeoNames index should be built
-    val indexPath = Paths.get("geonames", "src", "main", "unmanagedResources", "org", "clulab", "geonames", "index")
+    val indexPath = ((Compile / resourceManaged).value / "org" / "clulab" / "geonames" / "index").toPath
 
     // get the last modified date from the version.sbt
     val versionPath = Paths.get("geonames","version.sbt")
