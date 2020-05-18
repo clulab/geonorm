@@ -34,6 +34,7 @@ lazy val geonorm = (project in file(".")).settings(
   crossScalaVersions := List("2.11.12", "2.12.11", "2.13.1"),
   releaseCrossBuild := true,
   scalacOptions := Seq("-unchecked", "-deprecation"),
+  resolvers += "Artifactory" at "http://artifactory.cs.arizona.edu:8081/artifactory/sbt-release-local/",
   libraryDependencies ++= {
     val luceneVer = "6.6.6"
 
