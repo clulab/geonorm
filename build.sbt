@@ -87,7 +87,8 @@ lazy val geonames = project.dependsOn(geonorm % "compile-internal").settings(
     import java.net.URL
     import java.time.{Instant, ZoneOffset}
     import java.time.format.DateTimeFormatter
-    import java.nio.file.{Files,Paths}
+    import java.nio.file.{Files,Paths,StandardOpenOption}
+    import java.nio.channels.FileChannel
     import java.util.zip.ZipFile
 
     val log = streams.value.log
@@ -112,6 +113,9 @@ lazy val geonames = project.dependsOn(geonorm % "compile-internal").settings(
     val allCountriesZipPath = Paths.get("geonames",s"allCountries-$timestamp.zip")
     val allCountriesTxtPath = Paths.get("geonames", s"allCountries-$timestamp.txt")
 
+    // check environment for a local file that should be appended to the GeoNames .txt file
+    val extraTxtPathOption = sys.env.get("GEONAMES_EXTRA").map(x => Paths.get(x))
+
     // if there is an up-to-date allCountries.txt already, use that
     if (Files.exists(allCountriesTxtPath)) {
       log.info(s"Using existing $allCountriesTxtPath")
@@ -124,6 +128,7 @@ lazy val geonames = project.dependsOn(geonorm % "compile-internal").settings(
 
       // update version.sbt
       val newVersionText = versionRegex.replaceFirstIn(versionText, s"$sbtVersion+$timestamp")
+      log.info(s"Writing new version $newVersionText")
       Files.write(versionPath, newVersionText.getBytes("UTF-8"))
 
       // unzip the .zip file
@@ -137,14 +142,38 @@ lazy val geonames = project.dependsOn(geonorm % "compile-internal").settings(
       }
     }
 
-    // if there is a new GeoNames timestamp, or no index has yet been built, invoke GeoNamesIndex to create one
+
+    // if there is a new GeoNames timestamp, a local file to be concatenated, or no index has yet been built,
+    // invoke GeoNamesIndex to create one
     import sbt.util.CacheImplicits._
     val doBuildIndex = Tracked.inputChanged(streams.value.cacheStoreFactory.make("geonames-timestamp")){
-      (changed: Boolean, _: String) => changed || !Files.exists(indexPath) || Files.list(indexPath).count() == 0
+      (changed: Boolean, _: String) =>
+        changed || extraTxtPathOption.isDefined || !Files.exists(indexPath) || Files.list(indexPath).count() == 0
     }
     if (doBuildIndex(timestamp)) {
+      val inputTxtPath = extraTxtPathOption match {
+        case None => allCountriesTxtPath
+        case Some(extraTxtPath) =>
+          val extraTxtName = extraTxtPath.getFileName.toString.replaceAll("[.]txt$|[\\W_]+", "")
+
+          // update version.sbt
+          val newVersionText = versionRegex.replaceFirstIn(versionText, s"$sbtVersion+$timestamp.$extraTxtName")
+          log.info(s"Writing new version $newVersionText")
+          Files.write(versionPath, newVersionText.getBytes("UTF-8"))
+
+          // concatenate the GeoNames .txt file and the extra .txt file
+          val combinedTxtPath = Paths.get("geonames", s"allCountries-$timestamp+$extraTxtName.txt")
+          log.info(s"Writing concatenated input file $combinedTxtPath")
+          val combinedTxtChannel = FileChannel.open(combinedTxtPath, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+          val allCountriesTxtChannel = FileChannel.open(allCountriesTxtPath, StandardOpenOption.READ)
+          val extraTxtChannel = FileChannel.open(extraTxtPath, StandardOpenOption.READ)
+          val end = combinedTxtChannel.transferFrom(allCountriesTxtChannel, 0, allCountriesTxtChannel.size)
+          combinedTxtChannel.transferFrom(extraTxtChannel, end, extraTxtChannel.size)
+          combinedTxtPath
+      }
+
       log.info(s"Creating index at $indexPath")
-      val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $allCountriesTxtPath"
+      val command = s" org.clulab.geonorm.GeoNamesIndex index $indexPath $inputTxtPath"
       Def.task {
         (geonorm / Compile / runMain).toTask(command).value
         indexPath.toFile.listFiles.toSeq
