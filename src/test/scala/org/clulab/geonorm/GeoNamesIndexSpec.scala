@@ -1,11 +1,16 @@
 package org.clulab.geonorm
 
 import java.nio.file.{Files, Paths}
-
 import org.apache.commons.io.FileUtils
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 
-class GeoNamesIndexSpec extends WordSpec with Matchers {
+class GeoNamesIndexSpec extends WordSpec with Matchers with BeforeAndAfterAll {
+  val indexTempDir = Files.createTempDirectory("geonames")
+
+  override def afterAll(): Unit = {
+    // This directory can be deleted only after all indexes have been closed.
+    FileUtils.deleteDirectory(indexTempDir.toFile)
+  }
 
   def mcIndexTests(index: GeoNamesIndex): Unit = {
     "find 1 exact match for Rocher de Monaco" in {
@@ -45,39 +50,36 @@ class GeoNamesIndexSpec extends WordSpec with Matchers {
   }
 
   "an index" when {
-    val indexTempDir = Files.createTempDirectory("geonames")
-    try {
-      "created from GeoNames MC.txt file" should {
-        val mcTxt = Paths.get("src/test/resources/geonames/MC.txt")
-        mcIndexTests(GeoNamesIndex.fromGeoNamesTxt(indexTempDir, mcTxt))
+    "created from GeoNames MC.txt file" should {
+      val mcTxt = Paths.get("src/test/resources/geonames/MC.txt")
+      mcIndexTests(GeoNamesIndex.fromGeoNamesTxt(indexTempDir, mcTxt))
+    }
+    "loaded from a directory that indexed MC.txt" should {
+      mcIndexTests(new GeoNamesIndex(indexTempDir))
+    }
+    "loaded from a directory that indexed MC.txt with maxFuzzyHits = 0 and maxNGramHits = 0" should {
+      val index = new GeoNamesIndex(indexTempDir, maxFuzzyHits = 0, maxNGramHits = 0)
+      "find no fuzzy or NGram matches to Moneghetti" in {
+        index.search("Monegetii") shouldBe empty
+        index.search("Mghetti") shouldBe empty
       }
-      "loaded from a directory that indexed MC.txt" should {
-        mcIndexTests(new GeoNamesIndex(indexTempDir))
-      }
-      "loaded from a directory that indexed MC.txt with maxFuzzyHits = 0 and maxNGramHits = 0" should {
-        val index = new GeoNamesIndex(indexTempDir, maxFuzzyHits = 0, maxNGramHits = 0)
-        "find no fuzzy or NGram matches to Moneghetti" in {
-          index.search("Monegetii") shouldBe empty
-          index.search("Mghetti") shouldBe empty
-        }
-        mcIndexTests(index)
-      }
-      "loaded from a index of the full GeoNames on the classpath" should {
-        "fail if the index directory is not empty" in {
-          Files.createDirectories(indexTempDir)
-          Files.createFile(indexTempDir.resolve("empty.txt"))
-          assertThrows[IllegalArgumentException] {
-            GeoNamesIndex.fromClasspathJar(indexTempDir)
-          }
-        }
-        "find matches for Ethiopia" in {
-          FileUtils.cleanDirectory(indexTempDir.toFile)
+      mcIndexTests(index)
+    }
+    "loaded from a index of the full GeoNames on the classpath" should {
+      "fail if the index directory is not empty" in {
+        Files.createDirectories(indexTempDir)
+        Files.createFile(indexTempDir.resolve("empty.txt"))
+        assertThrows[IllegalArgumentException] {
           val index = GeoNamesIndex.fromClasspathJar(indexTempDir)
-          index.search("Ethiopia") should not be empty
+          index.close()
         }
       }
-    } finally {
-      FileUtils.deleteDirectory(indexTempDir.toFile)
+      "find matches for Ethiopia" in {
+        FileUtils.cleanDirectory(indexTempDir.toFile)
+        val index = GeoNamesIndex.fromClasspathJar(indexTempDir)
+        index.search("Ethiopia") should not be empty
+        index.close()
+      }
     }
   }
 }

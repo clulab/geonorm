@@ -36,7 +36,7 @@ lazy val geonorm = (project in file(".")).settings(
   scalacOptions := Seq("-unchecked", "-deprecation"),
   resolvers += "Artifactory" at "http://artifactory.cs.arizona.edu:8081/artifactory/sbt-release-local/",
   libraryDependencies ++= {
-    val luceneVer = "6.6.6"
+    val luceneVer = "7.5.0"
 
     Seq(
       "org.apache.commons" %  "commons-io"              % "1.3.2",
@@ -45,6 +45,7 @@ lazy val geonorm = (project in file(".")).settings(
       "de.bwaldvogel"      %  "liblinear"               % "2.30",
       "org.apache.lucene"  %  "lucene-core"             % luceneVer,
       "org.apache.lucene"  %  "lucene-analyzers-common" % luceneVer,
+      "org.apache.lucene"  %  "lucene-backward-codecs"  % luceneVer,
       "org.apache.lucene"  %  "lucene-queryparser"      % luceneVer,
       "org.apache.lucene"  %  "lucene-grouping"         % luceneVer,
       "org.scalatest"      %% "scalatest"               % "3.0.8"                  % Test,
@@ -78,7 +79,7 @@ lazy val geonames = project.dependsOn(geonorm % "compile-internal").settings(
   publishArtifact in (Test, packageBin) := false,
   credentials += Credentials(Path.userHome / ".sbt" / ".artifactory_credentials"),
   publishTo := {
-    val artifactory = "http://artifactory.cs.arizona.edu:8081/artifactory/"
+    val artifactory = "https://artifactory.cs.arizona.edu:8081/artifactory/"
     val repository = "sbt-release-local"
     val details = if (isSnapshot.value) ";build.timestamp=" + new java.util.Date().getTime else ""
     val location = artifactory + repository + details
